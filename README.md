@@ -35,6 +35,42 @@ AMD sensors such as `k10temp` are not read automatically.
 
 ## Install
 
+### Quick install from a checkout
+
+```bash
+sudo ./install.sh
+```
+
+This installs the application under `/opt/thinkbook-fan/app`, adds
+`/usr/local/bin/thinkbook-fan`, installs a default configuration at
+`/etc/thinkbook-fan/config.toml` if none exists, installs the module and
+service files, disables the older bundled service if present, and enables
+`thinkbook-fan.service`.
+
+Check it with:
+
+```bash
+systemctl status thinkbook-fan.service
+sudo thinkbook-fan status
+sudo thinkbook-fan probe
+sudo journalctl -u thinkbook-fan.service -f
+```
+
+Remove it with:
+
+```bash
+sudo ./uninstall.sh
+```
+
+The configuration file is kept. The older `thinkbook-fan-curve.service` is
+left disabled, so you can re-enable it if you need to roll back:
+
+```bash
+sudo systemctl enable --now thinkbook-fan-curve.service
+```
+
+### Package install
+
 Requirements:
 
 - Linux with the `thinkpad_acpi` module
