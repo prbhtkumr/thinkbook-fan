@@ -238,12 +238,13 @@ The directory is group writable when `paths.state_group` is set and the
 service runs as root. Fan RPM and the actual EC level are not read back on
 this model, so the service is write-only and those fields are not present.
 
-The EC watchdog defaults to 60 seconds. If the daemon stops writing, the EC
-returns the fan to firmware automatic control. The daemon disables the
-watchdog and restores `level auto` on clean shutdown. Not every model exposes
-the watchdog command; check the service log. See
-[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) for the hardware limitation and
-the manual fail-safe check.
+The `thinkpad_acpi` fan watchdog defaults to 60 seconds. If the daemon stops
+writing, the driver returns the fan to firmware automatic control. This was
+verified on the tested model by freezing the daemon and watching the driver
+log. The daemon disables the watchdog and restores `level auto` on clean
+shutdown. Not every model exposes the watchdog command; check the service
+log. See [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) for the hardware
+limitation and the fail-safe test.
 
 ## How it works
 
