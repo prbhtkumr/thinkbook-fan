@@ -84,6 +84,7 @@ uninstaller removes the binary, unit, application, and module files, keeps
 `/etc/thinkbook-fan/config.toml`, and leaves the older bundled service
 disabled. A reinstall recreates everything and starts with the watchdog set.
 
-Deleting `/run/thinkbook-fan` while the service runs leaves it unable to
-write status until it restarts. Let the service recreate the directory, or
-restart it after removal.
+Removing `/run/thinkbook-fan` is not a reliable reset. The service recreates
+the directory on its next status write, and any running widget keeps its
+saved settings. Stop the service, remove the individual control files, then
+start it again for a clean state.

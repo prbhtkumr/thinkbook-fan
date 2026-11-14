@@ -15,12 +15,16 @@ from __future__ import annotations
 import grp
 import json
 import os
+import stat
 import tempfile
 import threading
 from pathlib import Path
 from typing import Any
 
 from .config import INPUT_MODES, POWER_STATES, Config
+
+MAX_CONTROL_BYTES = 4096
+MAX_STATUS_BYTES = 65536
 
 
 class ControlFiles:
@@ -38,7 +42,7 @@ class ControlFiles:
     def ensure(self) -> None:
         self.dir.mkdir(parents=True, exist_ok=True)
         try:
-            os.chmod(self.dir, 0o775)
+            os.chmod(self.dir, 0o2775)
         except OSError:
             pass
         group = self.config.paths.state_group
@@ -50,11 +54,26 @@ class ControlFiles:
                 pass
 
     # ------------------------------------------------------------------ files
-    def _read_text(self, path: Path) -> str:
+    def _read_text(self, path: Path, limit: int = MAX_CONTROL_BYTES) -> str:
         try:
-            return path.read_text().strip()
+            fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
         except OSError:
             return ""
+        try:
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode) or info.st_size > limit:
+                return ""
+            with os.fdopen(fd, "rb") as handle:
+                fd = -1
+                data = handle.read(limit + 1)
+        except OSError:
+            return ""
+        finally:
+            if fd >= 0:
+                os.close(fd)
+        if len(data) > limit:
+            return ""
+        return data.decode("utf-8", "replace").strip()
 
     def _read_int(self, path: Path) -> int | None:
         try:
@@ -66,11 +85,20 @@ class ControlFiles:
         self.ensure()
         fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=self.dir)
         try:
+            os.fchmod(fd, mode)
+            group = self.config.paths.state_group
+            if group and os.geteuid() == 0:
+                try:
+                    gid = grp.getgrnam(group).gr_gid
+                except KeyError:
+                    gid = None
+                if gid is not None:
+                    os.fchown(fd, 0, gid)
             with os.fdopen(fd, "w") as handle:
+                fd = -1
                 handle.write(text)
                 handle.flush()
                 os.fsync(handle.fileno())
-            os.chmod(temp_name, mode)
             os.replace(temp_name, path)
         except BaseException:
             try:
@@ -78,6 +106,9 @@ class ControlFiles:
             except OSError:
                 pass
             raise
+        finally:
+            if fd >= 0:
+                os.close(fd)
 
     def _remove(self, path: Path) -> None:
         try:
@@ -164,10 +195,12 @@ class ControlFiles:
 
     # ------------------------------------------------------------------ status
     def read_status(self) -> dict[str, Any] | None:
+        text = self._read_text(self.status_path, MAX_STATUS_BYTES)
+        if not text:
+            return None
         try:
-            with self.status_path.open() as handle:
-                data = json.load(handle)
-        except (OSError, ValueError):
+            data = json.loads(text)
+        except ValueError:
             return None
         return data if isinstance(data, dict) else None
 

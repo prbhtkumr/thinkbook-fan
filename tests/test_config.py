@@ -61,3 +61,13 @@ def test_invalid_configuration(body, message):
 def test_unknown_section_key():
     with pytest.raises(ConfigError, match="unknown key"):
         config_from_dict({"levels": {"minimum": 0}})
+
+
+def test_empty_state_group_is_allowed():
+    config = config_from_dict({"paths": {"state_group": ""}})
+    assert config.paths.state_group == ""
+
+
+def test_empty_path_is_still_rejected():
+    with pytest.raises(ConfigError, match="non-empty"):
+        config_from_dict({"paths": {"fan": ""}})

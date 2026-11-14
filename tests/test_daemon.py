@@ -129,3 +129,17 @@ def test_shutdown_disables_watchdog_and_restores_auto(tmp_path):
     assert hardware.watchdog == 0
     assert hardware.auto is True
     assert control.read_status()["mode"] == "off"
+
+
+def test_curve_levels_are_clamped_to_max(tmp_path):
+    config = default_config()
+    paths = replace(config.paths, state_dir=str(tmp_path / "run"))
+    levels = replace(config.levels, maximum=4)
+    config = replace(config, paths=paths, levels=levels)
+    control = ControlFiles(config)
+    control.ensure()
+    hardware = FakeHardware(temp=84.0)
+    daemon = FanDaemon(config, control, hardware, once=True)
+    status = daemon.iteration()
+    assert hardware.levels == [4]
+    assert status["level"] == 4

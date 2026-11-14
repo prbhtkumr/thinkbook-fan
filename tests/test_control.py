@@ -1,3 +1,5 @@
+import os
+import stat
 from dataclasses import replace
 
 import pytest
@@ -84,3 +86,54 @@ def test_status_round_trip(tmp_path):
     status = {"level": 3, "mode": "ac", "temp": 45}
     control.write_status(status)
     assert control.read_status() == status
+
+
+def test_invalid_utf8_control_files_are_ignored(tmp_path):
+    control = make_control(tmp_path)
+    control.ensure()
+    control.curves_path.write_bytes(b"\xff\xfe")
+    control.input_path.write_bytes(b"\xff")
+    control.min_path.write_bytes(b"\xff")
+    assert control.read_curves() == {
+        "ac": "auto",
+        "default": "auto",
+        "power-save": "power-save",
+    }
+    assert control.read_input() == "max-all"
+    assert control.read_min() == 3
+
+
+def test_symlinked_control_files_are_ignored(tmp_path):
+    control = make_control(tmp_path)
+    control.ensure()
+    target = tmp_path / "target"
+    target.write_text("7")
+    os.symlink(target, control.min_path)
+    assert control.read_min() == 3
+
+
+def test_fifo_control_files_are_ignored(tmp_path):
+    control = make_control(tmp_path)
+    control.ensure()
+    os.mkfifo(control.curves_path)
+    assert control.read_curves() == {
+        "ac": "auto",
+        "default": "auto",
+        "power-save": "power-save",
+    }
+
+
+def test_oversized_control_and_status_files_are_ignored(tmp_path):
+    control = make_control(tmp_path)
+    control.ensure()
+    control.input_path.write_text("a" * 5000)
+    control.status_path.write_text("x" * 70000)
+    assert control.read_input() == "max-all"
+    assert control.read_status() is None
+
+
+def test_written_files_use_the_control_mode_and_setgid_dir(tmp_path):
+    control = make_control(tmp_path)
+    control.set_min(4)
+    assert stat.S_IMODE(control.min_path.stat().st_mode) == 0o664
+    assert stat.S_IMODE(control.dir.stat().st_mode) & 0o2000

@@ -25,7 +25,9 @@ tar -C "$here" \
     --exclude=.pytest_cache \
     --exclude='*.egg-info' \
     --exclude=build \
-    -cf - . | tar -C "$app_dir" -xf -
+    -cf - . | tar -C "$app_dir" --no-same-owner --no-same-permissions -xf -
+chown -R root:root "$app_dir"
+chmod -R go-w "$app_dir"
 
 echo "Installing the CLI wrapper"
 cat > "$wrapper" <<'WRAPPER'

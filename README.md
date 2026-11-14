@@ -51,7 +51,8 @@ This installs the application under `/opt/thinkbook-fan/app`, adds
 `/usr/local/bin/thinkbook-fan`, installs a default configuration at
 `/etc/thinkbook-fan/config.toml` if none exists, installs the module and
 service files, disables the older bundled service if present, and enables
-`thinkbook-fan.service`.
+`thinkbook-fan.service`. The installed tree is root-owned and not group
+writable, so the service never imports code from a user-writable path.
 
 Check it with:
 
@@ -95,6 +96,8 @@ the unit to point at your virtualenv. A common layout is:
 ```bash
 sudo mkdir -p /opt/thinkbook-fan
 sudo cp -a . /opt/thinkbook-fan/app
+sudo chown -R root:root /opt/thinkbook-fan/app
+sudo chmod -R go-w /opt/thinkbook-fan/app
 sudo python3 -m venv /opt/thinkbook-fan/venv
 sudo /opt/thinkbook-fan/venv/bin/pip install /opt/thinkbook-fan/app
 ```
@@ -234,9 +237,11 @@ The status file contains:
 `mode` is `pin`, `ac`, `default`, `power-save`, or `off`. `pin` is the effective
 pinned level when a pin is active. `min` is the applied minimum level.
 `commanded` is the level the daemon requested. Files are written atomically.
-The directory is group writable when `paths.state_group` is set and the
-service runs as root. Fan RPM and the actual EC level are not read back on
-this model, so the service is write-only and those fields are not present.
+The directory is setgid and group writable when `paths.state_group` is set and
+the service runs as root, so group members can replace the control files.
+Set `paths.state_group = ""` to disable group access. Fan RPM and the actual
+EC level are not read back on this model, so the service is write-only and
+those fields are not present.
 
 The `thinkpad_acpi` fan watchdog defaults to 60 seconds. If the daemon stops
 writing, the driver returns the fan to firmware automatic control. This was

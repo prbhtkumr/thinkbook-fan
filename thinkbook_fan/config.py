@@ -193,8 +193,8 @@ def _check_keys(table: dict[str, Any], section: str, allowed: set[str]) -> None:
         raise ConfigError(f"unknown key(s) in [{section}]: {', '.join(unknown)}")
 
 
-def _string(value: Any, name: str) -> str:
-    if not isinstance(value, str) or not value:
+def _string(value: Any, name: str, allow_empty: bool = False) -> str:
+    if not isinstance(value, str) or (not value and not allow_empty):
         raise ConfigError(f"{name} must be a non-empty string")
     return value
 
@@ -223,10 +223,11 @@ def _build_paths(value: Any) -> PathsConfig:
     _check_keys(table, "paths", allowed)
     values = {}
     for key, item in table.items():
-        if key == "state_group":
-            values[key] = _string(item, f"paths.{key}")
-        else:
-            values[key] = _string(item, f"paths.{key}")
+        values[key] = _string(
+            item,
+            f"paths.{key}",
+            allow_empty=key == "state_group",
+        )
     return replace(PathsConfig(), **values)
 
 

@@ -104,6 +104,7 @@ class FanDaemon:
             want = max_level
         else:
             want = max(min_level, desired_level(control_temp, curve))
+        want = max(min_level, min(max_level, want))
 
         if ac != self.last_ac:
             self.current = None
