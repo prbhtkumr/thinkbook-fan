@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Add a `source` control file and `thinkbook-fan source curve|firmware` to hand
+  fan control back to the laptop firmware
+- Add a `source` field to the status and a `firmware` mode with null level
+- A pin still overrides firmware and returns control on unpin
+
 ## 0.1.0 - 2026-11-14
 
 - Standalone fan curve service for ThinkPad and ThinkBook hardware using

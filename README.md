@@ -18,6 +18,7 @@ Plasma, KDE, or any graphical session.
 - Selectable temperature input: maximum core, average core, package, or all sensors
 - Configurable minimum fan level from 0 to 7
 - Manual pin and unpin, with a temperature safety override
+- Firmware pass-through when you want the laptop to control the fan
 - Smoothing over a short temperature window
 - EC watchdog
 - CLI and a stable file interface
@@ -173,6 +174,8 @@ thinkbook-fan status --json
 thinkbook-fan pin 4
 thinkbook-fan unpin
 thinkbook-fan min 3
+thinkbook-fan source firmware
+thinkbook-fan source curve
 thinkbook-fan curve ac aggressive
 thinkbook-fan curve default power-save
 thinkbook-fan input package
@@ -191,6 +194,29 @@ Test without touching the fan:
 thinkbook-fan run --dry-run --once
 ```
 
+## Firmware control
+
+The service can hand the fan back to the laptop firmware. In this mode it
+writes `watchdog 0` and `level auto` once, then stops commanding levels:
+
+```bash
+thinkbook-fan source firmware
+```
+
+The minimum level and the curves are ignored while firmware control is
+active. A pin still overrides firmware, so `thinkbook-fan pin 7` works as a
+temporary burst and `thinkbook-fan unpin` returns control to firmware. Any
+`curve` command is not enough to leave firmware mode; use
+`thinkbook-fan source curve` for that.
+
+The service cannot read the fan level back on hardware that returns `ENXIO`,
+so the status reports `level` and `commanded` as `null` and `mode` as
+`firmware` while the firmware owns the fan.
+
+If the Plasma widget is installed, it writes its saved Fan control setting to
+`/run/thinkbook-fan/source` when the panel starts. Use the widget setting for
+a choice that survives a panel restart; a CLI change lasts until then.
+
 ## Interfaces
 
 The service has no network listener. Use the CLI and the files in the state
@@ -208,6 +234,7 @@ The state directory is shared with the Plasma widget:
   min-level    integer floor
   curves       ac=NAME, default=NAME, power-save=NAME
   input        max-core, avg-core, package, or max-all
+  source       curve or firmware
   state        JSON status written by the daemon
 ```
 
@@ -227,11 +254,27 @@ The status file contains:
   "pin": null,
   "commanded": 3,
   "watchdog": 60,
+  "source": "curve",
   "updated": 1794498018
 }
 ```
 
-`mode` is `pin`, `ac`, `default`, `power-save`, or `off`. `pin` is the effective
+With `source` set to `firmware`, the same file reports:
+
+```json
+{
+  "level": null,
+  "mode": "firmware",
+  "curve": null,
+  "commanded": null,
+  "watchdog": 0,
+  "source": "firmware"
+}
+```
+
+Only the fields that change are shown here.
+
+`mode` is `pin`, `firmware`, `ac`, `default`, `power-save`, or `off`. `pin` is the effective
 pinned level when a pin is active. `min` is the applied minimum level.
 `commanded` is the level the daemon requested. Files are written atomically.
 The directory is group writable when `paths.state_group` is set and the
@@ -250,12 +293,14 @@ limitation and the fail-safe test.
 
 1. Read the selected temperature input.
 2. Keep a short median window to reject spikes.
-3. Pick the curve for AC, battery, or low power.
-4. Apply the pinned level, or the curve level, with the minimum floor.
-5. Move the fan one level per poll. Hysteresis avoids rapid changes.
-6. If the temperature reaches the emergency limit, use the maximum level.
-7. Feed the EC watchdog with the periodic level refresh.
-8. Write the status file.
+3. If the source file selects firmware and no pin is active, write `level auto`
+   once and leave the fan to the laptop.
+4. Pick the curve for AC, battery, or low power.
+5. Apply the pinned level, or the curve level, with the minimum floor.
+6. Move the fan one level per poll. Hysteresis avoids rapid changes.
+7. If the temperature reaches the emergency limit, use the maximum level.
+8. Feed the EC watchdog with the periodic level refresh.
+9. Write the status file.
 
 ## Safety
 

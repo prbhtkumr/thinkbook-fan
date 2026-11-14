@@ -72,6 +72,10 @@ def build_parser() -> argparse.ArgumentParser:
     add_config_option(minimum)
     minimum.add_argument("level", type=int)
 
+    source = subparsers.add_parser("source", help="select who controls the fan")
+    add_config_option(source)
+    source.add_argument("source", choices=("curve", "firmware"))
+
     config_parser = subparsers.add_parser("config", help="print the effective configuration")
     add_config_option(config_parser)
 
@@ -132,6 +136,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"minimum fan level set to {level}")
             return 0
 
+        if args.command == "source":
+            source = control.set_source(args.source)
+            print(f"fan control set to {source}")
+            return 0
+
         if args.command == "config":
             print(json.dumps(config.public_dict(), indent=2))
             return 0
@@ -161,6 +170,7 @@ def print_status(status: dict) -> None:
     print(f"pin:     {status.get('pin')}")
     print(f"min:     {status.get('min')}")
     print(f"command: {status.get('commanded')}")
+    print(f"source:  {status.get('source')}")
     print(f"watchdog:{status.get('watchdog')}")
     if status.get("dry_run"):
         print("dry run: yes")
