@@ -1,8 +1,8 @@
 # thinkbook-fan
 
-A small, standalone fan curve service for ThinkBook laptops that expose the
-`thinkpad_acpi` fan level interface. It has no desktop dependencies. Use it
-from a terminal, a systemd service, or scripts.
+A small, standalone fan curve service for Lenovo ThinkPad and ThinkBook laptops
+that expose the `thinkpad_acpi` fan level interface. It has no desktop
+dependencies. Use it from a terminal, a systemd service, or scripts.
 
 The ThinkBook Fan widget is one optional client. The service and its state
 files are useful without Plasma, KDE, or any graphical session.
@@ -21,9 +21,16 @@ files are useful without Plasma, KDE, or any graphical session.
 
 ## Hardware
 
-Tested on a Lenovo ThinkBook 15 G2 ITL with an i5-1135G7. The service needs the
-`thinkpad_acpi` driver with `fan_control=1`. Other ThinkPad or ThinkBook models
-may work, but the curve thresholds and sensor names should be checked first.
+This is not a generic laptop fan daemon. It controls the fan through
+`thinkpad_acpi` and `/proc/acpi/ibm/fan`, and requires `fan_control=1`. That
+interface is used by many ThinkPads and some ThinkBooks. Machines using hwmon
+PWM fans or vendor-specific EC drivers are not supported.
+
+Tested on a Lenovo ThinkBook 15 G2 ITL with an i5-1135G7. The default sensor
+paths target this model: Intel `coretemp`, thermal zones 7 and 8, and `ACAD`.
+For another model, override them in `[paths]` and review the curve thresholds
+and safety limits. The automatic sensor reader currently looks for `coretemp`;
+AMD sensors such as `k10temp` are not read automatically.
 
 ## Install
 
