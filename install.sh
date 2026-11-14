@@ -51,6 +51,7 @@ install -Dm644 "$here/etc/modules-load.d/thinkbook-fan.conf" /etc/modules-load.d
 echo "Installing the service"
 install -Dm644 "$here/systemd/thinkbook-fan.service" "$service"
 systemctl daemon-reload
+systemctl reset-failed thinkbook-fan.service 2>/dev/null || true
 systemctl enable --now thinkbook-fan.service
 
 sleep 3

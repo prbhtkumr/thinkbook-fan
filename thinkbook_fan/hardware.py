@@ -59,6 +59,7 @@ class Hardware:
     def __init__(self, config: Config):
         self.config = config
         self.paths = config.paths
+        self.last_fan_error: str | None = None
 
     # ------------------------------------------------------------------ fan
     def fan_available(self) -> bool:
@@ -67,8 +68,10 @@ class Hardware:
     def read_fan(self) -> FanStatus | None:
         try:
             text = Path(self.paths.fan).read_text()
-        except OSError:
+        except OSError as exc:
+            self.last_fan_error = str(exc)
             return None
+        self.last_fan_error = None
 
         level = None
         speed = None

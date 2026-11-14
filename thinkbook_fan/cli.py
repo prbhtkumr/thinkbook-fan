@@ -25,10 +25,19 @@ def build_parser() -> argparse.ArgumentParser:
         description="Fan curve service for ThinkBook laptops using thinkpad_acpi.",
     )
     parser.add_argument("--config", metavar="PATH", help="configuration file")
+
+    def add_config_option(subparser):
+        subparser.add_argument(
+            "--config",
+            metavar="PATH",
+            default=argparse.SUPPRESS,
+            help="configuration file",
+        )
     parser.add_argument("--version", action="version", version=__version__)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     run = subparsers.add_parser("run", help="run the fan curve daemon")
+    add_config_option(run)
     run.add_argument(
         "--dry-run",
         action="store_true",
@@ -41,25 +50,33 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     status = subparsers.add_parser("status", help="show the last status")
+    add_config_option(status)
     status.add_argument("--json", action="store_true", help="print raw JSON")
 
     pin = subparsers.add_parser("pin", help="pin a fan level")
+    add_config_option(pin)
     pin.add_argument("level", type=int)
 
-    subparsers.add_parser("unpin", help="release the pinned level")
+    unpin = subparsers.add_parser("unpin", help="release the pinned level")
+    add_config_option(unpin)
 
     curve = subparsers.add_parser("curve", help="select a curve for a power state")
+    add_config_option(curve)
     curve.add_argument("state", choices=POWER_STATES)
     curve.add_argument("curve")
 
     temperature = subparsers.add_parser("input", help="select the temperature input")
+    add_config_option(temperature)
     temperature.add_argument("mode", choices=INPUT_MODES)
 
     minimum = subparsers.add_parser("min", help="set the minimum fan level")
+    add_config_option(minimum)
     minimum.add_argument("level", type=int)
 
-    subparsers.add_parser("probe", help="read the fan interface directly")
-    subparsers.add_parser("config", help="print the effective configuration")
+    probe = subparsers.add_parser("probe", help="read the fan interface directly")
+    add_config_option(probe)
+    config_parser = subparsers.add_parser("config", help="print the effective configuration")
+    add_config_option(config_parser)
 
     return parser
 
@@ -119,10 +136,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         if args.command == "probe":
-            fan = Hardware(config).read_fan()
+            hardware = Hardware(config)
+            fan = hardware.read_fan()
             if fan is None:
+                detail = f": {hardware.last_fan_error}" if hardware.last_fan_error else ""
+                print(f"fan read-back unavailable{detail}", file=sys.stderr)
                 print(
-                    "fan read-back unavailable; run as root or check thinkpad_acpi fan_control=1",
+                    "The daemon can still write fan levels. Check thinkpad_acpi fan_control=1 and the EC support.",
                     file=sys.stderr,
                 )
                 return 1
