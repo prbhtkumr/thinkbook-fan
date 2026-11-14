@@ -7,7 +7,7 @@ Type=simple
 TimeoutStopSec=10
 ExecStartPre=-/sbin/modprobe thinkpad_acpi
 ExecStart=/usr/bin/thinkbook-fan run --config /etc/thinkbook-fan/config.toml
-ExecStopPost=/usr/bin/timeout 5 /bin/sh -c 'echo "level auto" > /proc/acpi/ibm/fan'
+ExecStopPost=-/usr/bin/timeout 5 /bin/sh -c 'echo "watchdog 0" > /proc/acpi/ibm/fan; echo "level auto" > /proc/acpi/ibm/fan'
 Restart=on-failure
 RestartSec=10
 

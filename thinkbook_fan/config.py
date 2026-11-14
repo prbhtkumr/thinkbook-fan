@@ -47,6 +47,7 @@ class DaemonConfig:
     safety_c: float = 95.0
     low_battery_percent: int = 20
     temp_window: int = 3
+    watchdog_seconds: int = 60
 
 
 @dataclass(frozen=True)
@@ -91,6 +92,7 @@ class Config:
                 "safety_c": self.daemon.safety_c,
                 "low_battery_percent": self.daemon.low_battery_percent,
                 "temp_window": self.daemon.temp_window,
+                "watchdog_seconds": self.daemon.watchdog_seconds,
             },
             "levels": {
                 "min": self.levels.minimum,
@@ -240,6 +242,7 @@ def _build_daemon(value: Any) -> DaemonConfig:
     safety = _number(table.get("safety_c", defaults.safety_c), "daemon.safety_c")
     low_battery = _integer(table.get("low_battery_percent", defaults.low_battery_percent), "daemon.low_battery_percent")
     window = _integer(table.get("temp_window", defaults.temp_window), "daemon.temp_window")
+    watchdog = _integer(table.get("watchdog_seconds", defaults.watchdog_seconds), "daemon.watchdog_seconds")
 
     if poll <= 0:
         raise ConfigError("daemon.poll_seconds must be greater than 0")
@@ -255,6 +258,12 @@ def _build_daemon(value: Any) -> DaemonConfig:
         raise ConfigError("daemon.low_battery_percent must be between 0 and 100")
     if window < 1:
         raise ConfigError("daemon.temp_window must be at least 1")
+    if watchdog != 0 and not 1 <= watchdog <= 120:
+        raise ConfigError("daemon.watchdog_seconds must be 0 or between 1 and 120")
+    if watchdog > 0 and refresh > watchdog / 2:
+        raise ConfigError(
+            "daemon.refresh_seconds must be at most half of daemon.watchdog_seconds"
+        )
 
     return DaemonConfig(
         poll_seconds=poll,
@@ -264,6 +273,7 @@ def _build_daemon(value: Any) -> DaemonConfig:
         safety_c=safety,
         low_battery_percent=low_battery,
         temp_window=window,
+        watchdog_seconds=watchdog,
     )
 
 

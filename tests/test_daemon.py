@@ -3,6 +3,7 @@ from dataclasses import replace
 from thinkbook_fan.config import default_config
 from thinkbook_fan.control import ControlFiles
 from thinkbook_fan.daemon import FanDaemon
+from thinkbook_fan.hardware import FanStatus
 
 
 class FakeHardware:
@@ -11,12 +12,33 @@ class FakeHardware:
         self.ac = ac
         self.levels = []
         self.auto = False
+        self.watchdog = None
+        self.reported_level = None
+        self.rpm = 1200
 
     def fan_available(self):
         return True
 
     def write_level(self, level):
         self.levels.append(level)
+
+    def set_watchdog(self, seconds):
+        self.watchdog = seconds
+
+    def read_fan(self):
+        level = self.reported_level
+        if level is None:
+            level = str(self.levels[-1]) if self.levels else "auto"
+        return FanStatus(
+            level=level,
+            speed=self.rpm,
+            status="enabled",
+            command_lines=(
+                "commands: level <level>",
+                "commands: watchdog <timeout>",
+            ),
+            raw="",
+        )
 
     def restore_auto(self):
         self.auto = True
@@ -34,10 +56,11 @@ class FakeHardware:
         return "ac" if ac else "default"
 
 
-def make_daemon(tmp_path, temp=50.0, min_level=None, pin=None, once=False, dry_run=False):
+def make_daemon(tmp_path, temp=50.0, min_level=None, pin=None, once=False, dry_run=False, watchdog=60):
     config = default_config()
     paths = replace(config.paths, state_dir=str(tmp_path / "run"))
-    config = replace(config, paths=paths)
+    daemon_config = replace(config.daemon, watchdog_seconds=watchdog)
+    config = replace(config, paths=paths, daemon=daemon_config)
     control = ControlFiles(config)
     control.ensure()
     if min_level is not None:
@@ -92,14 +115,46 @@ def test_run_once_writes_status(tmp_path):
     daemon, control, hardware = make_daemon(tmp_path, once=True)
     assert daemon.run() == 0
     assert hardware.levels == [3]
+    assert hardware.watchdog == 60
     assert hardware.auto is False
-    assert control.read_status()["level"] == 3
+    status = control.read_status()
+    assert status["level"] == 3
+    assert status["commanded"] == 3
+    assert status["ec_level"] == "3"
+    assert status["rpm"] == 1200
+    assert status["watchdog"] == 60
 
 
 def test_dry_run_does_not_touch_fan(tmp_path):
     daemon, control, hardware = make_daemon(tmp_path, once=True, dry_run=True)
     assert daemon.run() == 0
     assert hardware.levels == []
+    assert hardware.watchdog is None
     status = control.read_status()
     assert status["level"] == 3
     assert status["dry_run"] is True
+
+
+def test_watchdog_can_be_disabled(tmp_path):
+    daemon, _, hardware = make_daemon(tmp_path, once=True, watchdog=0)
+    assert daemon.run() == 0
+    assert hardware.watchdog is None
+
+
+def test_read_back_mismatch_is_reported(tmp_path):
+    daemon, control, hardware = make_daemon(tmp_path, min_level=3)
+    hardware.reported_level = "2"
+    status = daemon.iteration()
+    assert hardware.levels == [3]
+    assert status["level"] == 2
+    assert status["commanded"] == 3
+    assert status["ec_level"] == "2"
+
+
+def test_shutdown_disables_watchdog_and_restores_auto(tmp_path):
+    daemon, control, hardware = make_daemon(tmp_path)
+    hardware.watchdog = 60
+    daemon._shutdown()
+    assert hardware.watchdog == 0
+    assert hardware.auto is True
+    assert control.read_status()["mode"] == "off"

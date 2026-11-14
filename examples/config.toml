@@ -17,6 +17,8 @@ state_group = "users"
 [daemon]
 poll_seconds = 2
 refresh_seconds = 30
+# EC watchdog in seconds. 0 disables it. Must be at least twice refresh_seconds.
+watchdog_seconds = 60
 hysteresis_c = 3
 emergency_c = 90
 safety_c = 95

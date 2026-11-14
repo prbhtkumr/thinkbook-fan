@@ -11,6 +11,7 @@ def test_defaults_allow_zero_and_keep_default_floor():
     assert config.levels.default_min == 3
     assert config.curves["auto"][-1] == (0, 0)
     assert config.power["power-save"] == "power-save"
+    assert config.daemon.watchdog_seconds == 60
 
 
 def test_load_custom_config(tmp_path):

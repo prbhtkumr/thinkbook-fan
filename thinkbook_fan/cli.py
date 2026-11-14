@@ -14,6 +14,7 @@ from . import __version__
 from .config import INPUT_MODES, POWER_STATES, ConfigError, load_config
 from .control import ControlFiles
 from .daemon import FanDaemon
+from .hardware import Hardware
 
 LOGGER = logging.getLogger("thinkbook_fan")
 
@@ -57,6 +58,7 @@ def build_parser() -> argparse.ArgumentParser:
     minimum = subparsers.add_parser("min", help="set the minimum fan level")
     minimum.add_argument("level", type=int)
 
+    subparsers.add_parser("probe", help="read the fan interface directly")
     subparsers.add_parser("config", help="print the effective configuration")
 
     return parser
@@ -116,6 +118,21 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"minimum fan level set to {level}")
             return 0
 
+        if args.command == "probe":
+            fan = Hardware(config).read_fan()
+            if fan is None:
+                print(
+                    "fan read-back unavailable; run as root or check thinkpad_acpi fan_control=1",
+                    file=sys.stderr,
+                )
+                return 1
+            print(f"status: {fan.status or 'unknown'}")
+            print(f"level:  {fan.level or 'unknown'}")
+            print(f"speed:  {fan.speed if fan.speed is not None else 'unknown'}")
+            for line in fan.command_lines:
+                print(line)
+            return 0
+
         if args.command == "config":
             print(json.dumps(config.public_dict(), indent=2))
             return 0
@@ -143,6 +160,11 @@ def print_status(status: dict) -> None:
     print(f"control: {status.get('control')}")
     print(f"ac:      {status.get('ac')}")
     print(f"pin:     {status.get('pin')}")
+    print(f"min:     {status.get('min')}")
+    print(f"command: {status.get('commanded')}")
+    print(f"EC level:{status.get('ec_level')}")
+    print(f"rpm:     {status.get('rpm')}")
+    print(f"watchdog:{status.get('watchdog')}")
     if status.get("dry_run"):
         print("dry run: yes")
     print(f"updated: {when}")

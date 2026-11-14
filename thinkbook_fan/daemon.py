@@ -41,12 +41,15 @@ class FanDaemon:
         self.last_temp: float | None = None
         self.temp_history: list[float] = []
         self.last_input: str | None = None
+        self._last_mismatch: str | None = None
 
     # ------------------------------------------------------------------ loop
     def run(self) -> int:
         self.control.ensure()
         if not self.dry_run and not self.hardware.fan_available():
             self.logger.error("fan interface not present: %s", self.config.paths.fan)
+            return 1
+        if not self._prepare_fan():
             return 1
 
         if not self.once:
@@ -124,6 +127,21 @@ class FanDaemon:
         elif self.current is not None and time.monotonic() - self.last_write >= daemon_config.refresh_seconds:
             self._apply_level(self.current, pin_active, refresh=True)
 
+        fan = self.hardware.read_fan()
+        rpm = fan.speed if fan is not None else None
+        ec_level = fan.level if fan is not None else None
+        if fan is not None and not self.dry_run:
+            actual = fan.numeric_level
+            if actual is not None:
+                if self.current is None or actual != self.current:
+                    self._log_mismatch(ec_level)
+                    self.current = actual
+                else:
+                    self._last_mismatch = None
+            elif fan.level is not None and self.current is not None:
+                self._log_mismatch(ec_level)
+                self.current = None
+
         mode = "pin" if pin_active else state_name
         effective_pin = max(min_level, pin) if pin_active else None
         status = {
@@ -131,11 +149,16 @@ class FanDaemon:
             "mode": mode,
             "curve": curve_name,
             "state": state_name,
+            "min": min_level,
             "input": input_mode,
             "temp": round(temp),
             "control": round(control_temp),
             "ac": bool(ac),
             "pin": effective_pin,
+            "commanded": target,
+            "rpm": rpm,
+            "ec_level": ec_level,
+            "watchdog": daemon_config.watchdog_seconds,
             "updated": int(time.time()),
         }
         if self.dry_run:
@@ -170,6 +193,56 @@ class FanDaemon:
             )
 
     # ------------------------------------------------------------- lifecycle
+    def _prepare_fan(self) -> bool:
+        fan = self.hardware.read_fan()
+        if fan is None:
+            self.logger.warning(
+                "fan read-back unavailable, continuing write-only"
+            )
+        else:
+            if fan.command_lines and not fan.supports("level"):
+                self.logger.error(
+                    "thinkpad_acpi fan_control=1 is not enabled"
+                )
+                return False
+            speed = f", {fan.speed} rpm" if fan.speed is not None else ""
+            self.logger.info("fan read-back available%s", speed)
+
+        seconds = self.config.daemon.watchdog_seconds
+        if seconds <= 0:
+            self.logger.info("EC watchdog disabled")
+            return True
+        if fan is not None and fan.command_lines and not fan.supports("watchdog"):
+            self.logger.warning("EC watchdog is not supported by this fan interface")
+            return True
+        if self.dry_run:
+            self.logger.info("would set EC watchdog to %s seconds", seconds)
+            return True
+        try:
+            self.hardware.set_watchdog(seconds)
+            self.logger.info("EC watchdog set to %s seconds", seconds)
+        except OSError as exc:
+            self.logger.warning("cannot set EC watchdog: %s", exc)
+        return True
+
+    def _log_mismatch(self, ec_level: str | None) -> None:
+        key = str(ec_level)
+        if key == self._last_mismatch:
+            return
+        self._last_mismatch = key
+        if ec_level is None:
+            self.logger.warning("EC fan level is unreadable, re-asserting")
+        elif ec_level.isdigit():
+            self.logger.warning(
+                "EC fan level %s differs from the commanded level, re-asserting",
+                ec_level,
+            )
+        else:
+            self.logger.warning(
+                "EC fan is at %s instead of the commanded level, re-asserting",
+                ec_level,
+            )
+
     def _install_signals(self) -> None:
         if threading.current_thread() is not threading.main_thread():
             return
@@ -199,6 +272,12 @@ class FanDaemon:
             self.logger.error("cannot write shutdown status: %s", exc)
         if self.dry_run:
             return
+        if self.config.daemon.watchdog_seconds > 0:
+            try:
+                self.hardware.set_watchdog(0)
+                self.logger.info("EC watchdog disabled")
+            except OSError as exc:
+                self.logger.warning("failed to disable EC watchdog: %s", exc)
         try:
             self.hardware.restore_auto()
             self.logger.info("restored fan level auto")

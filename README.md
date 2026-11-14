@@ -15,6 +15,7 @@ files are useful without Plasma, KDE, or any graphical session.
 - Configurable minimum fan level from 0 to 7
 - Manual pin and unpin, with a temperature safety override
 - Smoothing over a short temperature window
+- EC watchdog and fan level/RPM read-back
 - CLI and a stable file interface
 - File based state that is compatible with the Plasma widget
 - Systemd unit and module configuration included
@@ -103,7 +104,7 @@ built-in defaults are used.
 The example configuration documents every option. Important sections:
 
 - `[paths]`: fan, state, sensor, and power supply paths
-- `[daemon]`: polling, smoothing, hysteresis, emergency, and safety temperatures
+- `[daemon]`: polling, smoothing, hysteresis, emergency and safety temperatures, and the EC watchdog
 - `[levels]`: minimum, maximum, and default floor
 - `[temperature]`: default temperature input
 - `[curves.*]`: threshold and level pairs
@@ -177,18 +178,33 @@ The status file contains:
   "mode": "ac",
   "curve": "auto",
   "state": "ac",
+  "min": 3,
   "input": "max-all",
   "temp": 45,
   "control": 45,
   "ac": true,
   "pin": null,
+  "commanded": 3,
+  "rpm": 3200,
+  "ec_level": "3",
+  "watchdog": 60,
   "updated": 1794498018
 }
 ```
 
 `mode` is `pin`, `ac`, `default`, `power-save`, or `off`. `pin` is the effective
-pinned level when a pin is active. Files are written atomically. The directory
-is group writable when `paths.state_group` is set and the service runs as root.
+pinned level when a pin is active. `min` is the applied minimum level.
+`commanded` is the level the daemon asked
+for, `ec_level` is what the fan interface reports, and `rpm` is the measured
+speed. Files are written atomically. The directory is group writable when
+`paths.state_group` is set and the service runs as root.
+
+The EC watchdog defaults to 60 seconds. If the daemon stops writing, the EC
+returns the fan to firmware automatic control. The daemon disables the
+watchdog and restores `level auto` on clean shutdown. Read-back detects
+external fan writes, watchdog takeover, and stalled fans through the RPM
+value. Not every model exposes the watchdog command; check `sudo
+thinkbook-fan probe` and the service log.
 
 ## How it works
 
@@ -198,7 +214,9 @@ is group writable when `paths.state_group` is set and the service runs as root.
 4. Apply the pinned level, or the curve level, with the minimum floor.
 5. Move the fan one level per poll. Hysteresis avoids rapid changes.
 6. If the temperature reaches the emergency limit, use the maximum level.
-7. Write the status file.
+7. Read the actual fan level and RPM back. Re-assert the level if the EC differs.
+8. Feed the EC watchdog with the periodic level refresh.
+9. Write the status file.
 
 ## Safety
 
