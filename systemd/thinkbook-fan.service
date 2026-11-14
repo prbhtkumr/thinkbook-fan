@@ -21,7 +21,7 @@ RestrictAddressFamilies=AF_UNIX
 UMask=0027
 ExecStartPre=-/sbin/modprobe thinkpad_acpi
 ExecStart=/usr/local/bin/thinkbook-fan run --config /etc/thinkbook-fan/config.toml
-ExecStopPost=-/usr/bin/timeout 5 /bin/sh -c 'echo "watchdog 0" > /proc/acpi/ibm/fan; echo "level auto" > /proc/acpi/ibm/fan'
+ExecStopPost=-/usr/bin/timeout 5 /bin/sh -c '/usr/local/bin/thinkbook-fan cleanup --config /etc/thinkbook-fan/config.toml >/dev/null 2>&1 || { echo "watchdog 0" > /proc/acpi/ibm/fan; echo "level auto" > /proc/acpi/ibm/fan; }'
 Restart=on-failure
 RestartSec=10
 

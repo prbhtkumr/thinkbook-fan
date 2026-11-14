@@ -182,6 +182,7 @@ thinkbook-fan curve ac aggressive
 thinkbook-fan curve default power-save
 thinkbook-fan input package
 thinkbook-fan config
+thinkbook-fan cleanup
 ```
 
 Run the service:
@@ -195,6 +196,11 @@ Test without touching the fan:
 ```bash
 thinkbook-fan run --dry-run --once
 ```
+
+A non-dry one-shot run applies the level once and exits with the fan watchdog
+armed, so the level holds until the watchdog expires. Use
+`thinkbook-fan cleanup` to disable the watchdog and restore `level auto`
+immediately.
 
 ## Interfaces
 
@@ -249,9 +255,11 @@ The `thinkpad_acpi` fan watchdog defaults to 60 seconds. If the daemon stops
 writing, the driver returns the fan to firmware automatic control. This was
 verified on the tested model by freezing the daemon and watching the driver
 log. The daemon disables the watchdog and restores `level auto` on clean
-shutdown. Not every model exposes the watchdog command; check the service
-log. See [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) for the hardware
-limitation and the fail-safe test.
+shutdown. The unit runs `thinkbook-fan cleanup` on stop and falls back to
+writing the default fan path if the command fails. Not every model exposes the
+watchdog command; check the service log. See
+[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) for the hardware limitation and
+the fail-safe test.
 
 ## How it works
 

@@ -14,6 +14,7 @@ from . import __version__
 from .config import INPUT_MODES, POWER_STATES, ConfigError, load_config
 from .control import ControlFiles
 from .daemon import FanDaemon
+from .hardware import Hardware
 
 LOGGER = logging.getLogger("thinkbook_fan")
 
@@ -75,6 +76,12 @@ def build_parser() -> argparse.ArgumentParser:
     config_parser = subparsers.add_parser("config", help="print the effective configuration")
     add_config_option(config_parser)
 
+    cleanup = subparsers.add_parser(
+        "cleanup",
+        help="disable the fan watchdog and restore firmware fan control",
+    )
+    add_config_option(cleanup)
+
     return parser
 
 
@@ -95,6 +102,27 @@ def main(argv: Sequence[str] | None = None) -> int:
                 LOGGER.warning("run as root to write the fan, or use --dry-run")
             daemon = FanDaemon(config, control, dry_run=args.dry_run, once=args.once)
             return daemon.run()
+
+        if args.command == "cleanup":
+            hardware = Hardware(config)
+            if not hardware.fan_available():
+                print(
+                    f"error: fan interface not present: {config.paths.fan}",
+                    file=sys.stderr,
+                )
+                return 1
+            failed = False
+            try:
+                hardware.set_watchdog(0)
+            except OSError as exc:
+                print(f"error: cannot disable fan watchdog: {exc}", file=sys.stderr)
+                failed = True
+            try:
+                hardware.restore_auto()
+            except OSError as exc:
+                print(f"error: cannot restore fan auto: {exc}", file=sys.stderr)
+                failed = True
+            return 1 if failed else 0
 
         if args.command == "status":
             status = control.read_status()

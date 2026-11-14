@@ -14,6 +14,8 @@
   working directory to `sys.path`
 - Let the emergency temperature override a pin and report `mode: emergency`
 - Keep `min`, `commanded`, and `watchdog` in the shutdown status
+- Add a `thinkbook-fan cleanup` command and use it in `ExecStopPost`, with a
+  fallback to the default fan path
 - Add systemd sandboxing and a managed runtime directory
 - Limit the CI token to read-only repository contents, pin actions by commit,
   add a Dependabot configuration, and test Python 3.14

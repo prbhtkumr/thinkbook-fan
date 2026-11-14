@@ -43,8 +43,9 @@ when the service writes `watchdog 60`, and resets it on each `level` write.
 The service refreshes the level every 30 seconds, so a 60 second watchdog
 leaves roughly 30 seconds of headroom.
 
-A clean stop disables the watchdog and writes `level auto`. The log should
-show:
+A clean stop disables the watchdog and writes `level auto`. The unit runs
+`thinkbook-fan cleanup` from `ExecStopPost`, and falls back to the default
+`/proc/acpi/ibm/fan` path if the command fails. The log should show:
 
 ```text
 EC watchdog disabled
