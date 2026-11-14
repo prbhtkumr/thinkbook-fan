@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "thinkbook-fan"
+version = "0.1.0"
+description = "Fan curve service for ThinkBook laptops using thinkpad_acpi"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "Prabhat Kumar" }]
+keywords = ["thinkbook", "thinkpad", "fan", "thermal", "linux"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: System :: Hardware",
+    "Topic :: System :: Systems Administration",
+]
+dependencies = []
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[project.scripts]
+thinkbook-fan = "thinkbook_fan.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["thinkbook_fan*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.setuptools.data-files]
+"share/thinkbook-fan" = [
+    "examples/config.toml",
+    "systemd/thinkbook-fan.service",
+]
+"share/thinkbook-fan/modprobe.d" = [
+    "etc/modprobe.d/thinkbook-fan.conf",
+]
+"share/thinkbook-fan/modules-load.d" = [
+    "etc/modules-load.d/thinkbook-fan.conf",
+]

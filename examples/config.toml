@@ -1,0 +1,50 @@
+# thinkbook-fan configuration.
+# Copy to /etc/thinkbook-fan/config.toml when installing as a service.
+
+[paths]
+fan = "/proc/acpi/ibm/fan"
+state_dir = "/run/thinkbook-fan"
+power_supply = "/sys/class/power_supply"
+ac_online = "/sys/class/power_supply/ACAD/online"
+platform_profile = "/sys/firmware/acpi/platform_profile"
+hwmon_root = "/sys/class/hwmon"
+package_zone = "/sys/class/thermal/thermal_zone7/temp"
+tcpu_zone = "/sys/class/thermal/thermal_zone8/temp"
+# Group allowed to write the control files and read the status file.
+# Set to "" when the users group does not exist.
+state_group = "users"
+
+[daemon]
+poll_seconds = 2
+refresh_seconds = 30
+hysteresis_c = 3
+emergency_c = 90
+safety_c = 95
+low_battery_percent = 20
+temp_window = 3
+
+[levels]
+# 0 stops the fan, 7 is maximum. The floor applies to every curve and pin.
+min = 0
+max = 7
+# Used when no min-level file exists yet.
+default_min = 3
+
+[temperature]
+# max-core, avg-core, package, or max-all
+input = "max-all"
+
+[curves.auto]
+# [temperature, level], highest threshold first.
+points = [[88, 7], [81, 6], [74, 5], [66, 4], [0, 0]]
+
+[curves.power-save]
+points = [[94, 7], [88, 5], [82, 4], [0, 0]]
+
+[curves.aggressive]
+points = [[80, 7], [74, 6], [68, 5], [60, 4], [0, 0]]
+
+[power]
+ac = "auto"
+default = "auto"
+power-save = "power-save"
