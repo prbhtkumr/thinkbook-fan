@@ -61,10 +61,6 @@ systemctl --no-pager --full status thinkbook-fan.service || true
 echo
 echo "Daemon status"
 "$wrapper" status || true
-echo
-echo "Fan probe"
-"$wrapper" probe || true
-echo
 
 if systemctl is-active --quiet thinkbook-fan.service; then
     echo "Installed and running."

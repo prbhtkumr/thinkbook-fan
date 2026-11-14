@@ -3,7 +3,6 @@ from dataclasses import replace
 from thinkbook_fan.config import default_config
 from thinkbook_fan.control import ControlFiles
 from thinkbook_fan.daemon import FanDaemon
-from thinkbook_fan.hardware import FanStatus
 
 
 class FakeHardware:
@@ -13,8 +12,6 @@ class FakeHardware:
         self.levels = []
         self.auto = False
         self.watchdog = None
-        self.reported_level = None
-        self.rpm = 1200
 
     def fan_available(self):
         return True
@@ -24,21 +21,6 @@ class FakeHardware:
 
     def set_watchdog(self, seconds):
         self.watchdog = seconds
-
-    def read_fan(self):
-        level = self.reported_level
-        if level is None:
-            level = str(self.levels[-1]) if self.levels else "auto"
-        return FanStatus(
-            level=level,
-            speed=self.rpm,
-            status="enabled",
-            command_lines=(
-                "commands: level <level>",
-                "commands: watchdog <timeout>",
-            ),
-            raw="",
-        )
 
     def restore_auto(self):
         self.auto = True
@@ -120,9 +102,8 @@ def test_run_once_writes_status(tmp_path):
     status = control.read_status()
     assert status["level"] == 3
     assert status["commanded"] == 3
-    assert status["ec_level"] == "3"
-    assert status["rpm"] == 1200
     assert status["watchdog"] == 60
+    assert status["min"] == 3
 
 
 def test_dry_run_does_not_touch_fan(tmp_path):
@@ -139,16 +120,6 @@ def test_watchdog_can_be_disabled(tmp_path):
     daemon, _, hardware = make_daemon(tmp_path, once=True, watchdog=0)
     assert daemon.run() == 0
     assert hardware.watchdog is None
-
-
-def test_read_back_mismatch_is_reported(tmp_path):
-    daemon, control, hardware = make_daemon(tmp_path, min_level=3)
-    hardware.reported_level = "2"
-    status = daemon.iteration()
-    assert hardware.levels == [3]
-    assert status["level"] == 2
-    assert status["commanded"] == 3
-    assert status["ec_level"] == "2"
 
 
 def test_shutdown_disables_watchdog_and_restores_auto(tmp_path):

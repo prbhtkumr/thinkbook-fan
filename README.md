@@ -15,7 +15,7 @@ files are useful without Plasma, KDE, or any graphical session.
 - Configurable minimum fan level from 0 to 7
 - Manual pin and unpin, with a temperature safety override
 - Smoothing over a short temperature window
-- EC watchdog and fan level/RPM read-back
+- EC watchdog
 - CLI and a stable file interface
 - File based state that is compatible with the Plasma widget
 - Systemd unit and module configuration included
@@ -31,7 +31,8 @@ Tested on a Lenovo ThinkBook 15 G2 ITL with an i5-1135G7. The default sensor
 paths target this model: Intel `coretemp`, thermal zones 7 and 8, and `ACAD`.
 For another model, override them in `[paths]` and review the curve thresholds
 and safety limits. The automatic sensor reader currently looks for `coretemp`;
-AMD sensors such as `k10temp` are not read automatically.
+AMD sensors such as `k10temp` are not read automatically. Fan RPM and actual
+EC level read-back are not exposed on this model, so the service is write-only.
 
 ## Install
 
@@ -52,7 +53,6 @@ Check it with:
 ```bash
 systemctl status thinkbook-fan.service
 sudo thinkbook-fan status
-sudo thinkbook-fan probe
 sudo journalctl -u thinkbook-fan.service -f
 ```
 
@@ -221,8 +221,6 @@ The status file contains:
   "ac": true,
   "pin": null,
   "commanded": 3,
-  "rpm": 3200,
-  "ec_level": "3",
   "watchdog": 60,
   "updated": 1794498018
 }
@@ -230,17 +228,15 @@ The status file contains:
 
 `mode` is `pin`, `ac`, `default`, `power-save`, or `off`. `pin` is the effective
 pinned level when a pin is active. `min` is the applied minimum level.
-`commanded` is the level the daemon asked
-for, `ec_level` is what the fan interface reports, and `rpm` is the measured
-speed. Files are written atomically. The directory is group writable when
-`paths.state_group` is set and the service runs as root.
+`commanded` is the level the daemon requested. Files are written atomically.
+The directory is group writable when `paths.state_group` is set and the
+service runs as root. Fan RPM and the actual EC level are not read back on
+this model, so the service is write-only and those fields are not present.
 
 The EC watchdog defaults to 60 seconds. If the daemon stops writing, the EC
 returns the fan to firmware automatic control. The daemon disables the
-watchdog and restores `level auto` on clean shutdown. Read-back detects
-external fan writes, watchdog takeover, and stalled fans through the RPM
-value. Not every model exposes the watchdog command; check `sudo
-thinkbook-fan probe` and the service log.
+watchdog and restores `level auto` on clean shutdown. Not every model exposes
+the watchdog command; check the service log.
 
 ## How it works
 
@@ -250,9 +246,8 @@ thinkbook-fan probe` and the service log.
 4. Apply the pinned level, or the curve level, with the minimum floor.
 5. Move the fan one level per poll. Hysteresis avoids rapid changes.
 6. If the temperature reaches the emergency limit, use the maximum level.
-7. Read the actual fan level and RPM back. Re-assert the level if the EC differs.
-8. Feed the EC watchdog with the periodic level refresh.
-9. Write the status file.
+7. Feed the EC watchdog with the periodic level refresh.
+8. Write the status file.
 
 ## Safety
 
