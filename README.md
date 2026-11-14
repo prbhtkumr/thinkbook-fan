@@ -4,8 +4,9 @@ A small, standalone fan curve service for Lenovo ThinkPad and ThinkBook laptops
 that expose the `thinkpad_acpi` fan level interface. It has no desktop
 dependencies. Use it from a terminal, a systemd service, or scripts.
 
-The ThinkBook Fan widget is one optional client. The service and its state
-files are useful without Plasma, KDE, or any graphical session.
+The [ThinkBook Fan widget](https://github.com/prbhtkumr/thinkbook-fan-widget)
+is one optional client. The service and its state files are useful without
+Plasma, KDE, or any graphical session.
 
 ## Features
 
@@ -27,8 +28,9 @@ This is not a generic laptop fan daemon. It controls the fan through
 interface is used by many ThinkPads and some ThinkBooks. Machines using hwmon
 PWM fans or vendor-specific EC drivers are not supported.
 
-Tested on a Lenovo ThinkBook 15 G2 ITL with an i5-1135G7. The default sensor
-paths target this model: Intel `coretemp`, thermal zones 7 and 8, and `ACAD`.
+See [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) for the tested hardware and
+limitations. Tested on a Lenovo ThinkBook 15 G2 ITL with an i5-1135G7. The
+default sensor paths target this model: Intel `coretemp`, thermal zones 7 and 8, and `ACAD`.
 For another model, override them in `[paths]` and review the curve thresholds
 and safety limits. The automatic sensor reader currently looks for `coretemp`;
 AMD sensors such as `k10temp` are not read automatically. Fan RPM and actual
@@ -236,7 +238,9 @@ this model, so the service is write-only and those fields are not present.
 The EC watchdog defaults to 60 seconds. If the daemon stops writing, the EC
 returns the fan to firmware automatic control. The daemon disables the
 watchdog and restores `level auto` on clean shutdown. Not every model exposes
-the watchdog command; check the service log.
+the watchdog command; check the service log. See
+[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) for the hardware limitation and
+the manual fail-safe check.
 
 ## How it works
 
