@@ -1,5 +1,8 @@
 # thinkbook-fan
 
+[![tests](https://github.com/prbhtkumr/thinkbook-fan/actions/workflows/test.yml/badge.svg)](https://github.com/prbhtkumr/thinkbook-fan/actions/workflows/test.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A small, standalone fan curve service for Lenovo ThinkPad and ThinkBook laptops
 that expose the `thinkpad_acpi` fan level interface. It has no desktop
 dependencies. Use it from a terminal, a systemd service, or scripts.
