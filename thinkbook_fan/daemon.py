@@ -41,7 +41,6 @@ class FanDaemon:
         self.last_temp: float | None = None
         self.temp_history: list[float] = []
         self.last_input: str | None = None
-        self.firmware = False
 
     # ------------------------------------------------------------------ loop
     def run(self) -> int:
@@ -95,40 +94,9 @@ class FanDaemon:
 
         min_level = control.read_min()
         pin = control.read_pin()
-        source = control.read_source()
         pin_active = pin is not None and control_temp < daemon_config.safety_c
         emergency = control_temp >= daemon_config.emergency_c
         max_level = self.config.levels.maximum
-
-        if source == "firmware" and not pin_active and (
-            self.firmware or self._enter_firmware()
-        ):
-            status = {
-                "level": None,
-                "mode": "firmware",
-                "curve": None,
-                "state": state_name,
-                "min": min_level,
-                "input": input_mode,
-                "temp": round(temp),
-                "control": round(control_temp),
-                "ac": bool(ac),
-                "pin": None,
-                "commanded": None,
-                "watchdog": 0,
-                "source": source,
-                "updated": int(time.time()),
-            }
-            if self.dry_run:
-                status["dry_run"] = True
-            try:
-                control.write_status(status)
-            except OSError as exc:
-                self.logger.error("cannot write status: %s", exc)
-            return status
-
-        if self.firmware:
-            self._leave_firmware()
 
         if pin_active:
             want = max(min_level, pin)
@@ -173,7 +141,6 @@ class FanDaemon:
             "pin": effective_pin,
             "commanded": target,
             "watchdog": daemon_config.watchdog_seconds,
-            "source": source,
             "updated": int(time.time()),
         }
         if self.dry_run:
@@ -208,35 +175,6 @@ class FanDaemon:
             )
 
     # ------------------------------------------------------------- lifecycle
-    def _enter_firmware(self) -> bool:
-        if self.dry_run:
-            self.logger.info("would hand fan control to firmware")
-        else:
-            try:
-                self.hardware.set_watchdog(0)
-            except OSError as exc:
-                self.logger.warning("cannot disable fan watchdog: %s", exc)
-            try:
-                self.hardware.restore_auto()
-            except OSError as exc:
-                self.logger.error("cannot hand fan control to firmware: %s", exc)
-                return False
-            self.logger.info("fan control -> firmware")
-        self.firmware = True
-        self.current = None
-        return True
-
-    def _leave_firmware(self) -> None:
-        seconds = self.config.daemon.watchdog_seconds
-        if not self.dry_run and seconds > 0:
-            try:
-                self.hardware.set_watchdog(seconds)
-            except OSError as exc:
-                self.logger.warning("cannot set fan watchdog: %s", exc)
-        self.firmware = False
-        self.current = None
-        self.logger.info("fan control -> service")
-
     def _prepare_fan(self) -> bool:
         seconds = self.config.daemon.watchdog_seconds
         if seconds <= 0:
@@ -273,7 +211,6 @@ class FanDaemon:
             "control": None,
             "ac": bool(self.hardware.on_ac()),
             "pin": None,
-            "source": self.control.read_source(),
             "updated": int(time.time()),
         }
         try:

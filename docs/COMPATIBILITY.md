@@ -17,13 +17,6 @@ not read the current EC level or RPM. The status reports the commanded level,
 the minimum level, and the watchdog timeout. The widget does not show an RPM
 field on this hardware.
 
-## Firmware control
-
-Writing `level auto` returns the fan to firmware control on this model. The
-service's firmware mode sets `watchdog 0` and `level auto` and then stops
-writing, which was verified from the driver log. Fan level read-back is still
-unavailable, so firmware mode has no level or RPM feedback.
-
 ## Other hardware
 
 The service is not a generic laptop fan daemon. It requires `thinkpad_acpi`

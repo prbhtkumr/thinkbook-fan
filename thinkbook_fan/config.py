@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any
 
 INPUT_MODES = ("max-core", "avg-core", "package", "max-all")
-SOURCES = ("curve", "firmware")
 POWER_STATES = ("ac", "default", "power-save")
 
 DEFAULT_CURVES: dict[str, tuple[tuple[float, int], ...]] = {

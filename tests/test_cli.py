@@ -6,9 +6,3 @@ def test_config_is_accepted_before_and_after_subcommands():
     assert parser.parse_args(["--config", "a.toml", "run"]).config == "a.toml"
     assert parser.parse_args(["run", "--config", "b.toml"]).config == "b.toml"
     assert parser.parse_args(["status", "--config", "c.toml"]).config == "c.toml"
-
-
-def test_source_command_accepts_both_modes():
-    parser = build_parser()
-    assert parser.parse_args(["source", "firmware"]).source == "firmware"
-    assert parser.parse_args(["source", "curve", "--config", "d.toml"]).config == "d.toml"

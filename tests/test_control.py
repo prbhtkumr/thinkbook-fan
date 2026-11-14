@@ -84,16 +84,3 @@ def test_status_round_trip(tmp_path):
     status = {"level": 3, "mode": "ac", "temp": 45}
     control.write_status(status)
     assert control.read_status() == status
-
-
-def test_source_round_trip(tmp_path):
-    control = make_control(tmp_path)
-    control.ensure()
-    assert control.read_source() == "curve"
-    assert control.set_source("firmware") == "firmware"
-    assert control.read_source() == "firmware"
-    control.source_path.write_text("nonsense")
-    assert control.read_source() == "curve"
-    assert control.set_source("curve") == "curve"
-    with pytest.raises(ValueError):
-        control.set_source("auto")

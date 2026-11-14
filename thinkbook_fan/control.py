@@ -7,7 +7,6 @@ Plasma widget:
     min-level   integer floor
     curves      ac=NAME / default=NAME / power-save=NAME
     input       temperature input mode
-    source      curve or firmware
     state       JSON status written by the daemon
 """
 
@@ -21,7 +20,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from .config import INPUT_MODES, POWER_STATES, SOURCES, Config
+from .config import INPUT_MODES, POWER_STATES, Config
 
 
 class ControlFiles:
@@ -32,7 +31,6 @@ class ControlFiles:
         self.min_path = self.dir / "min-level"
         self.curves_path = self.dir / "curves"
         self.input_path = self.dir / "input"
-        self.source_path = self.dir / "source"
         self.status_path = self.dir / "state"
         self._curve_lock = threading.Lock()
 
@@ -163,16 +161,6 @@ class ControlFiles:
             raise ValueError(f"input must be one of: {', '.join(INPUT_MODES)}")
         self._write(self.input_path, mode, 0o664)
         return mode
-
-    # ------------------------------------------------------------------ source
-    def read_source(self) -> str:
-        return "firmware" if self._read_text(self.source_path) == "firmware" else "curve"
-
-    def set_source(self, source: str) -> str:
-        if source not in SOURCES:
-            raise ValueError(f"source must be one of: {', '.join(SOURCES)}")
-        self._write(self.source_path, source, 0o664)
-        return source
 
     # ------------------------------------------------------------------ status
     def read_status(self) -> dict[str, Any] | None:
