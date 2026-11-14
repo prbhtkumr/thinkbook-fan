@@ -142,8 +142,10 @@ cat /proc/acpi/ibm/fan
 ## Configuration
 
 The service reads `config.toml` from `--config`, `THINKBOOK_FAN_CONFIG`,
-`./config.toml`, or `/etc/thinkbook-fan/config.toml`. If no file exists, the
-built-in defaults are used.
+`./config.toml`, or `/etc/thinkbook-fan/config.toml`. When the CLI runs as
+root, it skips `./config.toml` and requires `--config` or the environment
+variable for a checkout file. If no file exists, the built-in defaults are
+used.
 
 The example configuration documents every option. Important sections:
 
@@ -234,7 +236,7 @@ The status file contains:
 }
 ```
 
-`mode` is `pin`, `ac`, `default`, `power-save`, or `off`. `pin` is the effective
+`mode` is `pin`, `emergency`, `ac`, `default`, `power-save`, or `off`. `pin` is the effective
 pinned level when a pin is active. `min` is the applied minimum level.
 `commanded` is the level the daemon requested. Files are written atomically.
 The directory is setgid and group writable when `paths.state_group` is set and

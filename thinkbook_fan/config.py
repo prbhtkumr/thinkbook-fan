@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 import tomllib
 from dataclasses import dataclass, fields, replace
@@ -19,6 +20,7 @@ DEFAULT_CURVES: dict[str, tuple[tuple[float, int], ...]] = {
 DEFAULT_POWER = {"ac": "auto", "default": "auto", "power-save": "power-save"}
 
 CONFIG_ENV = "THINKBOOK_FAN_CONFIG"
+SYSTEM_CONFIG = Path("/etc/thinkbook-fan/config.toml")
 
 
 class ConfigError(ValueError):
@@ -130,7 +132,11 @@ def load_config(path: str | os.PathLike[str] | None = None) -> Config:
             selected = Path(env_path)
             explicit = True
         else:
-            for candidate in (Path.cwd() / "config.toml", Path("/etc/thinkbook-fan/config.toml")):
+            candidates = []
+            if os.geteuid() != 0:
+                candidates.append(Path.cwd() / "config.toml")
+            candidates.append(SYSTEM_CONFIG)
+            for candidate in candidates:
                 if candidate.is_file():
                     selected = candidate
                     break
@@ -202,7 +208,10 @@ def _string(value: Any, name: str, allow_empty: bool = False) -> str:
 def _number(value: Any, name: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ConfigError(f"{name} must be a number")
-    return float(value)
+    number = float(value)
+    if not math.isfinite(number):
+        raise ConfigError(f"{name} must be finite")
+    return number
 
 
 def _integer(value: Any, name: str) -> int:
@@ -245,10 +254,10 @@ def _build_daemon(value: Any) -> DaemonConfig:
     window = _integer(table.get("temp_window", defaults.temp_window), "daemon.temp_window")
     watchdog = _integer(table.get("watchdog_seconds", defaults.watchdog_seconds), "daemon.watchdog_seconds")
 
-    if poll <= 0:
-        raise ConfigError("daemon.poll_seconds must be greater than 0")
-    if refresh <= 0:
-        raise ConfigError("daemon.refresh_seconds must be greater than 0")
+    if not 0 < poll <= 3600:
+        raise ConfigError("daemon.poll_seconds must be between 0 and 3600")
+    if not 0 < refresh <= 3600:
+        raise ConfigError("daemon.refresh_seconds must be between 0 and 3600")
     if hysteresis < 0:
         raise ConfigError("daemon.hysteresis_c cannot be negative")
     if not 0 <= emergency <= 120 or not 0 <= safety <= 120:
@@ -257,8 +266,14 @@ def _build_daemon(value: Any) -> DaemonConfig:
         raise ConfigError("daemon.emergency_c cannot be above daemon.safety_c")
     if not 0 <= low_battery <= 100:
         raise ConfigError("daemon.low_battery_percent must be between 0 and 100")
-    if window < 1:
-        raise ConfigError("daemon.temp_window must be at least 1")
+    if not 1 <= window <= 1000:
+        raise ConfigError("daemon.temp_window must be between 1 and 1000")
+    if not 0 <= hysteresis <= 50:
+        raise ConfigError("daemon.hysteresis_c must be between 0 and 50")
+    if not -50 <= emergency <= 200:
+        raise ConfigError("daemon.emergency_c must be between -50 and 200")
+    if not -50 <= safety <= 200:
+        raise ConfigError("daemon.safety_c must be between -50 and 200")
     if watchdog != 0 and not 1 <= watchdog <= 120:
         raise ConfigError("daemon.watchdog_seconds must be 0 or between 1 and 120")
     if watchdog > 0 and refresh > watchdog / 2:
@@ -318,6 +333,10 @@ def _build_curves(value: Any) -> dict[str, tuple[tuple[float, int], ...]]:
             if not isinstance(point, (list, tuple)) or len(point) != 2:
                 raise ConfigError(f"curves.{name}.points[{index}] must be [temperature, level]")
             threshold = _number(point[0], f"curves.{name}.points[{index}].temperature")
+            if not -100 <= threshold <= 200:
+                raise ConfigError(
+                    f"curves.{name}.points[{index}].temperature must be between -100 and 200"
+                )
             level = _integer(point[1], f"curves.{name}.points[{index}].level")
             if not 0 <= level <= 7:
                 raise ConfigError(f"curves.{name}.points[{index}].level must be between 0 and 7")

@@ -143,3 +143,22 @@ def test_curve_levels_are_clamped_to_max(tmp_path):
     status = daemon.iteration()
     assert hardware.levels == [4]
     assert status["level"] == 4
+
+
+def test_emergency_overrides_pin(tmp_path):
+    daemon, _, hardware = make_daemon(tmp_path, temp=92.0, min_level=0, pin=2)
+    status = daemon.iteration()
+    assert hardware.levels == [7]
+    assert status["level"] == 7
+    assert status["mode"] == "emergency"
+    assert status["pin"] == 2
+
+
+def test_shutdown_status_keeps_the_schema(tmp_path):
+    daemon, control, _ = make_daemon(tmp_path)
+    daemon.hardware.watchdog = 60
+    daemon._shutdown()
+    status = control.read_status()
+    assert status["min"] == 3
+    assert status["commanded"] is None
+    assert status["watchdog"] == 0

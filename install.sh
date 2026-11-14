@@ -33,7 +33,7 @@ echo "Installing the CLI wrapper"
 cat > "$wrapper" <<'WRAPPER'
 #!/bin/sh
 export PYTHONPATH="/opt/thinkbook-fan/app${PYTHONPATH:+:$PYTHONPATH}"
-exec /usr/bin/python3 -m thinkbook_fan "$@"
+exec /usr/bin/python3 -P -m thinkbook_fan "$@"
 WRAPPER
 chmod 755 "$wrapper"
 

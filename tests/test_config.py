@@ -71,3 +71,38 @@ def test_empty_state_group_is_allowed():
 def test_empty_path_is_still_rejected():
     with pytest.raises(ConfigError, match="non-empty"):
         config_from_dict({"paths": {"fan": ""}})
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "[daemon]\npoll_seconds = nan\n",
+        "[daemon]\npoll_seconds = inf\n",
+        "[daemon]\npoll_seconds = 99999\n",
+        "[daemon]\nrefresh_seconds = 99999\n",
+        "[daemon]\ntemp_window = 5000\n",
+        "[daemon]\nhysteresis_c = 100\n",
+        "[daemon]\nemergency_c = 500\n",
+        "[curves.x]\npoints = [[nan, 3]]\n",
+        "[curves.x]\npoints = [[500, 3]]\n",
+    ],
+)
+def test_invalid_numeric_ranges(body):
+    with pytest.raises(ConfigError):
+        config_from_dict(__import__("tomllib").loads(body))
+
+
+def test_root_ignores_cwd_config(tmp_path, monkeypatch):
+    import os
+
+    from thinkbook_fan import config as config_module
+
+    cwd_config = tmp_path / "config.toml"
+    cwd_config.write_text("[levels]\ndefault_min = 0\n")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(config_module, "SYSTEM_CONFIG", tmp_path / "missing.toml")
+    monkeypatch.setattr(os, "geteuid", lambda: 0)
+    assert load_config().levels.default_min == 3
+
+    monkeypatch.setattr(os, "geteuid", lambda: 1000)
+    assert load_config().levels.default_min == 0

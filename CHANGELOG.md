@@ -9,7 +9,14 @@
 - Set the state directory setgid so group members can replace control files
 - Clamp curve levels to `levels.max`
 - Allow an empty `paths.state_group`
-- Limit the CI token to read-only repository contents
+- Reject non-finite and out-of-range numeric configuration values
+- Skip `./config.toml` for the root CLI and stop the wrapper from adding the
+  working directory to `sys.path`
+- Let the emergency temperature override a pin and report `mode: emergency`
+- Keep `min`, `commanded`, and `watchdog` in the shutdown status
+- Add systemd sandboxing and a managed runtime directory
+- Limit the CI token to read-only repository contents, pin actions by commit,
+  add a Dependabot configuration, and test Python 3.14
 
 ## 0.1.0 - 2026-11-14
 

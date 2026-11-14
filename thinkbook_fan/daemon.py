@@ -98,10 +98,10 @@ class FanDaemon:
         emergency = control_temp >= daemon_config.emergency_c
         max_level = self.config.levels.maximum
 
-        if pin_active:
-            want = max(min_level, pin)
-        elif emergency:
+        if emergency:
             want = max_level
+        elif pin_active:
+            want = max(min_level, pin)
         else:
             want = max(min_level, desired_level(control_temp, curve))
         want = max(min_level, min(max_level, want))
@@ -127,7 +127,12 @@ class FanDaemon:
         elif self.current is not None and time.monotonic() - self.last_write >= daemon_config.refresh_seconds:
             self._apply_level(self.current, pin_active, refresh=True)
 
-        mode = "pin" if pin_active else state_name
+        if emergency:
+            mode = "emergency"
+        elif pin_active:
+            mode = "pin"
+        else:
+            mode = state_name
         effective_pin = max(min_level, pin) if pin_active else None
         status = {
             "level": self.current,
@@ -212,6 +217,9 @@ class FanDaemon:
             "control": None,
             "ac": bool(self.hardware.on_ac()),
             "pin": None,
+            "min": self.control.read_min(),
+            "commanded": None,
+            "watchdog": 0,
             "updated": int(time.time()),
         }
         try:
