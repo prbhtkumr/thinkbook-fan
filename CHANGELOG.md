@@ -5,7 +5,7 @@
 - Install the application root-owned so the service never imports user-writable
   code
 - Write control files atomically and with the configured group, and reject
-  symlinks, FIFOs, oversized files, and invalid UTF-8
+  symlinks, FIFOs, and oversized files, and tolerate invalid UTF-8
 - Set the state directory setgid so group members can replace control files
 - Clamp curve levels to `levels.max`
 - Allow an empty `paths.state_group`
