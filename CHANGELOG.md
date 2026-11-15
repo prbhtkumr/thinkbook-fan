@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 - 2026-11-16
 
 - Install the application root-owned so the service never imports user-writable
   code
